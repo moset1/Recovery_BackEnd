@@ -23,15 +23,17 @@ public class UserSecurityService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        AppUser appUser = this.appUserRepository.findByName(username)
+        AppUser appUser = this.appUserRepository.findByEmail(username)
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을수 없습니다."));
 
         List<GrantedAuthority> authorities = new ArrayList<>();
-        if ("admin".equals(username)) {
+        // TODO: 향후 AppUser 엔티티에 role 필드를 추가하여 동적으로 권한을 부여하는 방식으로 개선할 수 있다.
+        if ("admin@google.com".equals(username)) { // 관리자 계정은 이메일로 구분
             authorities.add(new SimpleGrantedAuthority(UserRole.ADMIN.getValue()));
         } else {
             authorities.add(new SimpleGrantedAuthority(UserRole.USER.getValue()));
         }
-        return new User(appUser.getName(), appUser.getPassword(), authorities);
+        // Spring Security의 User 객체에는 로그인 ID(이메일), 비밀번호, 권한을 전달
+        return new User(appUser.getEmail(), appUser.getPassword(), authorities);
     }
 }
