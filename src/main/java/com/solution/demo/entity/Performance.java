@@ -3,6 +3,7 @@ package com.solution.demo.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
@@ -10,6 +11,7 @@ import java.time.LocalDate;
 @Getter
 @Setter
 @Entity
+@NoArgsConstructor
 public class Performance {
 
     @Id
@@ -26,4 +28,11 @@ public class Performance {
 
     private LocalDate date;
     private String score;
+
+    public Performance(AppUser appUser, Exercise exercise, String score) {
+        this.appUser = appUser;
+        this.exercise = exercise;
+        this.score = score;
+        this.date = LocalDate.now();
+    }
 }
