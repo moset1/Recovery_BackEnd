@@ -2,6 +2,7 @@ package com.solution.demo.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -28,5 +29,11 @@ public class GlobalExceptionHandler {
             errors.put(fieldName, errorMessage);
         });
         return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handDataIntegrityViolationException(DataIntegrityViolationException ex) {
+        Map<String, String> errorBody = Map.of("message", ex.getMessage());
+        return new ResponseEntity<>(errorBody, HttpStatus.CONFLICT);
     }
 }
