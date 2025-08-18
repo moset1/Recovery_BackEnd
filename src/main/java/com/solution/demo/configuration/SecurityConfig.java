@@ -46,6 +46,7 @@ public class SecurityConfig {
                 // 폼 기반 로그인 설정을 REST API에 맞게 재구성
                 .formLogin((formLogin) -> formLogin
                         .loginProcessingUrl("/api/appuser/login") // 로그인 요청을 처리할 URL
+                        .usernameParameter("email") // 로그인 시 사용할 아이디 파라미터 이름 (기본값: username)
                         .successHandler((request, response, authentication) -> { // 로그인 성공 시 JSON 응답
                             response.setStatus(HttpStatus.OK.value());
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
