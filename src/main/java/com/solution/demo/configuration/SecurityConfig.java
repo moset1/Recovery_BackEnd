@@ -1,7 +1,10 @@
 package com.solution.demo.configuration;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -11,6 +14,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
@@ -30,23 +35,43 @@ public class SecurityConfig {
                 .authorizeHttpRequests((authorizeHttpRequests) -> authorizeHttpRequests
                         // 아래 경로들은 인증 없이 접근 허용
                         .requestMatchers(
-                                new AntPathRequestMatcher("/api/user/signup"),
+                                new AntPathRequestMatcher("/api/appuser/signup"),
+                                new AntPathRequestMatcher("/api/appuser/login"), // 로그인 경로 허용
                                 new AntPathRequestMatcher("/h2-console/**")
                         ).permitAll()
                         // 그 외 모든 요청은 인증된 사용자만 접근 가능
                         .anyRequest().authenticated()
                 )
 
-                // 폼 기반 로그인 설정
+                // 폼 기반 로그인 설정을 REST API에 맞게 재구성
                 .formLogin((formLogin) -> formLogin
-                        .loginPage("/api/user/login") // 로그인 페이지 (실제로는 로그인 처리 API)
-                        .defaultSuccessUrl("/")      // 로그인 성공 시 리다이렉트 경로
+                        .loginProcessingUrl("/api/appuser/login") // 로그인 요청을 처리할 URL
+                        .successHandler((request, response, authentication) -> { // 로그인 성공 시 JSON 응답
+                            response.setStatus(HttpStatus.OK.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding("UTF-8");
+                            Map<String, String> body = Map.of("message", "로그인에 성공했습니다.");
+                            new ObjectMapper().writeValue(response.getWriter(), body);
+                        })
+                        .failureHandler((request, response, exception) -> { // 로그인 실패 시 JSON 응답
+                            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding("UTF-8");
+                            Map<String, String> body = Map.of("message", "로그인에 실패했습니다: " + exception.getMessage());
+                            new ObjectMapper().writeValue(response.getWriter(), body);
+                        })
                         .permitAll()
                 )
                 // 로그아웃 설정
                 .logout((logout) -> logout
                         .logoutRequestMatcher(new AntPathRequestMatcher("/api/user/logout"))
-                        .logoutSuccessUrl("/")
+                        .logoutSuccessHandler((request, response, authentication) -> { // 로그아웃 성공 시 JSON 응답
+                            response.setStatus(HttpStatus.OK.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding("UTF-8");
+                            Map<String, String> body = Map.of("message", "로그아웃 되었습니다.");
+                            new ObjectMapper().writeValue(response.getWriter(), body);
+                        })
                         .invalidateHttpSession(true) // 세션 무효화
                 );
         return http.build();
