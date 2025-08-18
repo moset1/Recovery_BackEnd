@@ -42,7 +42,7 @@ class AppUserControllerTest {
         mockMvc.perform(post("/api/appuser/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonContent))
-                .andExpect(status().isOk()) // 현재는 200 OK, 향후 201 Created로 개선 가능
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.message").value("User registered successfully!"))
                 .andDo(print());
     }
