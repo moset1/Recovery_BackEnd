@@ -1,6 +1,7 @@
 package com.solution.demo.configuration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -9,6 +10,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -19,13 +21,17 @@ import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final ObjectMapper objectMapper;
+
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 // CSRF 보호 비활성화 (Stateless REST API 환경에 적합)
-                .csrf((csrf) -> csrf.disable())
-
+                .csrf(AbstractHttpConfigurer::disable)
+                
                 // H2 콘솔을 위한 헤더 설정 (개발 단계에서만 사용 권장)
                 .headers((headers) -> headers
                         .addHeaderWriter(new XFrameOptionsHeaderWriter(
@@ -52,16 +58,15 @@ public class SecurityConfig {
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setCharacterEncoding("UTF-8");
                             Map<String, String> body = Map.of("message", "로그인에 성공했습니다.");
-                            new ObjectMapper().writeValue(response.getWriter(), body);
+                            objectMapper.writeValue(response.getWriter(), body);
                         })
                         .failureHandler((request, response, exception) -> { // 로그인 실패 시 JSON 응답
                             response.setStatus(HttpStatus.UNAUTHORIZED.value());
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setCharacterEncoding("UTF-8");
                             Map<String, String> body = Map.of("message", "로그인에 실패했습니다: " + exception.getMessage());
-                            new ObjectMapper().writeValue(response.getWriter(), body);
+                            objectMapper.writeValue(response.getWriter(), body);
                         })
-                        .permitAll()
                 )
                 // 로그아웃 설정
                 .logout((logout) -> logout
@@ -71,9 +76,28 @@ public class SecurityConfig {
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setCharacterEncoding("UTF-8");
                             Map<String, String> body = Map.of("message", "로그아웃 되었습니다.");
-                            new ObjectMapper().writeValue(response.getWriter(), body);
+                            objectMapper.writeValue(response.getWriter(), body);
                         })
                         .invalidateHttpSession(true) // 세션 무효화
+                )
+                // REST API에 맞는 예외 처리 설정
+                .exceptionHandling(exceptions -> exceptions
+                        // 인증되지 않은 사용자가 보호된 리소스에 접근 시
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding("UTF-8");
+                            Map<String, String> body = Map.of("message", "인증이 필요합니다. 먼저 로그인 해주세요.");
+                            objectMapper.writeValue(response.getWriter(), body);
+                        })
+                        // 인증은 되었으나 권한이 없는 리소스에 접근 시
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(HttpStatus.FORBIDDEN.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding("UTF-8");
+                            Map<String, String> body = Map.of("message", "해당 리소스에 접근할 권한이 없습니다.");
+                            objectMapper.writeValue(response.getWriter(), body);
+                        })
                 );
         return http.build();
     }
