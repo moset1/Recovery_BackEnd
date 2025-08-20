@@ -1,6 +1,8 @@
 package com.solution.demo.configuration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.solution.demo.framework.security.JwtAuthenticationFilter;
+import com.solution.demo.framework.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,10 +13,12 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.util.Map;
@@ -25,6 +29,7 @@ import java.util.Map;
 public class SecurityConfig {
 
     private final ObjectMapper objectMapper;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -32,6 +37,9 @@ public class SecurityConfig {
                 // CSRF 보호 비활성화 (Stateless REST API 환경에 적합)
                 .csrf(AbstractHttpConfigurer::disable)
                 
+                // 세션을 사용하지 않도록 설정 (Stateless)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
                 // H2 콘솔을 위한 헤더 설정 (개발 단계에서만 사용 권장)
                 .headers((headers) -> headers
                         .addHeaderWriter(new XFrameOptionsHeaderWriter(
@@ -47,38 +55,6 @@ public class SecurityConfig {
                         ).permitAll()
                         // 그 외 모든 요청은 인증된 사용자만 접근 가능
                         .anyRequest().authenticated()
-                )
-
-                // 폼 기반 로그인 설정을 REST API에 맞게 재구성
-                .formLogin((formLogin) -> formLogin
-                        .loginProcessingUrl("/api/appuser/login") // 로그인 요청을 처리할 URL
-                        .usernameParameter("email") // 로그인 시 사용할 아이디 파라미터 이름 (기본값: username)
-                        .successHandler((request, response, authentication) -> { // 로그인 성공 시 JSON 응답
-                            response.setStatus(HttpStatus.OK.value());
-                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                            response.setCharacterEncoding("UTF-8");
-                            Map<String, String> body = Map.of("message", "로그인에 성공했습니다.");
-                            objectMapper.writeValue(response.getWriter(), body);
-                        })
-                        .failureHandler((request, response, exception) -> { // 로그인 실패 시 JSON 응답
-                            response.setStatus(HttpStatus.UNAUTHORIZED.value());
-                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                            response.setCharacterEncoding("UTF-8");
-                            Map<String, String> body = Map.of("message", "로그인에 실패했습니다: " + exception.getMessage());
-                            objectMapper.writeValue(response.getWriter(), body);
-                        })
-                )
-                // 로그아웃 설정
-                .logout((logout) -> logout
-                        .logoutRequestMatcher(new AntPathRequestMatcher("/api/user/logout"))
-                        .logoutSuccessHandler((request, response, authentication) -> { // 로그아웃 성공 시 JSON 응답
-                            response.setStatus(HttpStatus.OK.value());
-                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                            response.setCharacterEncoding("UTF-8");
-                            Map<String, String> body = Map.of("message", "로그아웃 되었습니다.");
-                            objectMapper.writeValue(response.getWriter(), body);
-                        })
-                        .invalidateHttpSession(true) // 세션 무효화
                 )
                 // REST API에 맞는 예외 처리 설정
                 .exceptionHandling(exceptions -> exceptions
@@ -98,7 +74,10 @@ public class SecurityConfig {
                             Map<String, String> body = Map.of("message", "해당 리소스에 접근할 권한이 없습니다.");
                             objectMapper.writeValue(response.getWriter(), body);
                         })
-                );
+                )
+                // 직접 구현한 JWT 필터를 UsernamePasswordAuthenticationFilter 전에 추가
+                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 
@@ -111,4 +90,5 @@ public class SecurityConfig {
     AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
+
 }
