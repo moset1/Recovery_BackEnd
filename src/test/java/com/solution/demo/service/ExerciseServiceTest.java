@@ -51,7 +51,7 @@ class ExerciseServiceTest {
     void findByExerciseName_NotFound() {
         // given
         String nonExistentName = "존재하지 않는 운동";
-        given(exerciseRepository.findByExerciseName(nonExistentName)).willReturn(null);
+        given(exerciseRepository.findByExerciseName(nonExistentName)).willReturn(Optional.empty());
 
         // when
         Exercise foundExercise = exerciseService.findByExerciseName(nonExistentName);
