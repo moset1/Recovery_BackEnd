@@ -1,5 +1,6 @@
 package com.solution.demo.service;
 
+import com.solution.demo.exception.ResourceNotFoundException;
 import com.solution.demo.entity.Exercise;
 import com.solution.demo.repository.ExerciseRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -12,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -47,17 +49,17 @@ class ExerciseServiceTest {
     }
 
     @Test
-    @DisplayName("운동 이름으로 조회 실패 (결과 없음)")
-    void findByExerciseName_NotFound() {
+    @DisplayName("운동 이름으로 조회 실패 시 ResourceNotFoundException 발생")
+    void findByExerciseName_ThrowsException_WhenNotFound() {
         // given
         String nonExistentName = "존재하지 않는 운동";
         given(exerciseRepository.findByExerciseName(nonExistentName)).willReturn(Optional.empty());
 
-        // when
-        Exercise foundExercise = exerciseService.findByExerciseName(nonExistentName);
+        // when & then
+        assertThrows(ResourceNotFoundException.class, () -> {
+            exerciseService.findByExerciseName(nonExistentName);
+        });
 
-        // then
-        assertThat(foundExercise).isNull();
         verify(exerciseRepository).findByExerciseName(nonExistentName);
     }
 }
