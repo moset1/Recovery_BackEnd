@@ -42,7 +42,7 @@ class SecurityConfigTest {
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andDo(print())
                 .andExpect(status().isCreated()) // 201 Created 상태를 명확히 기대
-                .andExpect(jsonPath("$.message").value("User registered successfully!"));
+                .andExpect(jsonPath("$.token").exists()); // 응답에 'token' 필드가 있는지 확인
     }
 
     @Test

@@ -43,7 +43,7 @@ class AppUserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonContent))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.message").value("User registered successfully!"))
+                .andExpect(jsonPath("$.token").exists()) // 응답에 'token' 필드가 있는지 확인
                 .andDo(print());
     }
 
